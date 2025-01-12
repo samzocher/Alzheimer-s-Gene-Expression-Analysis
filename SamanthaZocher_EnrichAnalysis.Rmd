@@ -1,0 +1,85 @@
+---
+title: "Enrich R Midterm Analysis"
+output:
+  html_document:
+    df_print: paged
+---
+
+Load necessary packages
+```{r}
+library(enrichR)
+library(openxlsx)
+```
+## Import short listed gene file as we have already filtered for p value of less than 0.01. 
+```{r}
+geneListFinal1 <- read.table(
+          file = "output/SamanthaZocher_Moderate_Incipient_DEGs.tsv",
+        header = TRUE,
+        sep = "\t",
+        row.names = 1)
+
+geneListFinal2 <- read.table(
+          file = "output/SamanthaZocher_Severe_Moderate_DEGs.tsv",
+        header = TRUE,
+        sep = "\t",
+        row.names = 1)
+```
+
+## Clean gene names
+The reporter id and the gene name are separated by a |. We can split these to get the name of the gene by itself.
+```{r}
+funcSplit <- function(rep_gene) {
+    rep_gene_split <- unlist(strsplit(x = rep_gene, 
+                                      split = "|", 
+                                      fixed = TRUE))
+    gene <- rep_gene_split[2]
+    return(gene)
+}
+geneListSplit1 <- apply(X = as.matrix(geneListFinal1$Feature), 
+                       MARGIN = 1, FUN = funcSplit )
+geneListSplit2 <-  apply(X = as.matrix(geneListFinal2$Feature), 
+                       MARGIN = 1, FUN = funcSplit )
+
+#See the head of both datasets
+head(geneListSplit1) 
+head(geneListSplit2)
+```
+
+```{r}
+#remove duplicates
+geneListSplit1 <- unique(geneListSplit1)
+geneListSplit2 <- unique(geneListSplit2)
+
+# remove NA value
+geneListFinal1 <- na.omit(geneListSplit1) #156 genes
+geneListFinal2 <- na.omit(geneListSplit2) #193 genes
+
+```
+
+```{r}
+dbs <- enrichR::listEnrichrDbs()  
+#Test to see if enrichR is working
+testOutput <- enrichR::enrichr(genes = c("Runx1", "Gfi1", "Gfi1b", "Spi1", "Gata1", "Kdr"), databases = "KEGG_2021_Human")
+head(testOutput[[1]])
+
+#List of databases for which enrichment analysis will be run
+dblist1 <- read.csv(file = "input/2023-EnrichR-Databases.txt", 
+                    header = F, stringsAsFactors = F)
+
+head(dblist1)
+```
+## Call function to run Enrichment
+```{r}
+# set output file name
+outputFileName1 <- paste("output/Comparison1", "_EnrichR.xlsx", sep="")
+outputFileName2 <- paste("output/Comparison2", "_EnrichR.xlsx", sep="")
+
+#Load R script into the environment
+source(file = "functionEnrichment.R") 
+
+#call function to run Enrichment
+functionEnrichment(dblist1, geneListFinal1, outputFileName1)
+functionEnrichment(dblist1, geneListFinal2, outputFileName2)
+
+```
+The output is an excel file with a tab for each database
